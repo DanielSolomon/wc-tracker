@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World Cup 2026 — Draft Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#11151c; --paper:#f4f5f7; --card:#ffffff; --line:#e5e7eb;
+    --muted:#727a86; --faint:#9aa1ab;
+    --band:#0d1117; --band-2:#1b2330;
+    --live:#0e9f6e; --out:#c2302a;
+    --radius:14px;
+    --display:"Archivo",system-ui,sans-serif;
+    --body:"Inter",system-ui,sans-serif;
+  }
+  /* owner palette: solid (text/marker) + tint (fill) */
+  .o-Sawel{--c:#0a6b57;--t:#e1f5ee}
+  .o-Raj{--c:#a3381b;--t:#faece7}
+  .o-Levy{--c:#473fb0;--t:#eeedfe}
+  .o-Yonale{--c:#1763b6;--t:#e6f1fb}
+  .o-Niro{--c:#a6325a;--t:#fbeaf0}
+  .o-Foot{--c:#8a5717;--t:#faeeda}
+  .o-Shako{--c:#3c7a12;--t:#eaf3de}
+  .o-none{--c:#8b919b;--t:#eef0f3}
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
+       font-size:15px;line-height:1.45}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 64px}
+
+  /* ---- header band ---- */
+  header.band{background:var(--band);color:#fff;
+    background-image:linear-gradient(180deg,#0d1117, #12151c);
+    border-bottom:3px solid #2a3340}
+  .band-inner{max-width:1180px;margin:0 auto;padding:22px 18px 18px}
+  .kicker{font-family:var(--display);font-weight:700;letter-spacing:.16em;
+    text-transform:uppercase;font-size:11px;color:#7f8b9c}
+  h1{font-family:var(--display);font-weight:800;letter-spacing:-.01em;
+    font-size:clamp(26px,5vw,40px);margin:.12em 0 .15em;line-height:1}
+  .sub{color:#aab3c0;font-size:13.5px;max-width:60ch}
+  .sub b{color:#fff;font-weight:600}
+
+  /* ---- controls ---- */
+  .controls{position:sticky;top:0;z-index:30;background:rgba(244,245,247,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    margin:0 -18px 22px;padding:12px 18px}
+  .controls-inner{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:11px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .seg{display:inline-flex;background:#e7e9ee;border-radius:10px;padding:3px}
+  .seg button{font-family:var(--display);font-weight:600;font-size:13px;border:0;
+    background:transparent;color:#4a525e;padding:7px 16px;border-radius:8px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);
+    box-shadow:0 1px 2px rgba(16,20,28,.12)}
+  .seg.small button{padding:6px 11px;font-size:12px}
+
+  .search{flex:1;min-width:150px;display:flex;align-items:center;gap:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 11px}
+  .search input{border:0;outline:0;font-family:var(--body);font-size:14px;width:100%;background:transparent;color:var(--ink)}
+  .search svg{flex:0 0 auto;color:var(--faint)}
+
+  .owners{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+  .olabel{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);margin-right:2px}
+  .chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--c);
+    color:var(--c);background:var(--card);border-radius:999px;padding:5px 12px 5px 10px;
+    font-weight:600;font-size:13px;cursor:pointer;transition:background .12s,transform .06s}
+  .chip .dot{width:9px;height:9px;border-radius:50%;background:var(--c)}
+  .chip .n{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600;font-size:12px}
+  .chip[aria-pressed="true"]{background:var(--c);color:#fff}
+  .chip[aria-pressed="true"] .dot{background:#fff}
+  .chip[aria-pressed="true"] .n{color:rgba(255,255,255,.8)}
+  .chip:active{transform:translateY(1px)}
+  .chip-all{border-color:#c4c9d1;color:#3a414c}
+  .chip-all[aria-pressed="true"]{background:#2a3340;border-color:#2a3340;color:#fff}
+
+  .hint{color:var(--muted);font-size:12.5px}
+  .hint b{color:var(--ink);font-weight:600}
+  .refresh{display:inline-flex;align-items:center;gap:7px;font-family:var(--display);
+    font-weight:600;font-size:13px;color:#fff;background:#2a3340;border:0;border-radius:10px;
+    padding:8px 13px;cursor:pointer}
+  .refresh:hover{background:#374252}
+  .refresh:disabled{opacity:.6;cursor:default}
+  .refresh svg{transition:transform .6s}
+  .refresh.spin svg{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .refresh.ghost{background:transparent;color:#3a414c;border:1px solid #c4c9d1}
+  .refresh.ghost:hover{background:#eceef2}
+  .stamp{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:7px}
+  .srcdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 3px rgba(0,0,0,.04)}
+  .stamp.flash{animation:flash 1s ease}
+  @keyframes flash{0%{background:rgba(217,147,10,.18)}100%{background:transparent}}
+
+  /* ---- teams grid ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:10px}
+  .tcard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--c);
+    border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:7px;
+    transition:opacity .15s, box-shadow .12s, transform .12s}
+  .tcard:hover{box-shadow:0 4px 14px rgba(16,20,28,.08)}
+  .tcard .tn{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:-.01em}
+  .tcard .meta{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .gtag{font-family:var(--display);font-weight:700;font-size:11px;color:var(--muted);
+    letter-spacing:.06em;background:#f0f1f4;border-radius:6px;padding:2px 7px}
+  .ownerpill{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px;
+    color:var(--c);background:var(--t);border-radius:999px;padding:3px 9px 3px 8px}
+  .ownerpill .dot{width:7px;height:7px;border-radius:50%;background:var(--c)}
+  .ptsbadge{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ptsbadge b{font-family:var(--display);font-weight:800;font-size:15px;color:var(--ink)}
+  .status{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px;
+    cursor:pointer;user-select:none;border:0;background:transparent;padding:0;font-family:var(--body)}
+  .status .sdot{width:8px;height:8px;border-radius:50%}
+  .is-live .sdot{background:var(--live)} .is-live{color:var(--live)}
+  .is-out .sdot{background:var(--out)} .is-out{color:var(--out)}
+  .dim{opacity:.28;filter:saturate(.5)}
+  .hide{display:none !important}
+
+  /* ---- houses ---- */
+  .houses{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+  .house{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden}
+  .house h2{font-family:var(--display);font-weight:800;font-size:15px;margin:0;
+    padding:12px 14px;background:#11151c;color:#fff;display:flex;align-items:center;gap:9px}
+  .house h2 .badge{font-size:11px;font-weight:700;letter-spacing:.08em;color:#0d1117;
+    background:#cfd6df;border-radius:6px;padding:2px 7px}
+  .house h2 .sub2{margin-left:auto;font-weight:500;font-size:11px;color:#8b95a3}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  thead th{font-family:var(--display);font-weight:700;font-size:10.5px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);text-align:right;padding:8px 6px;border-bottom:1px solid var(--line)}
+  thead th.l{text-align:left}
+  tbody td{padding:8px 6px;border-bottom:1px solid #f0f1f4;text-align:right;font-size:13.5px}
+  tbody tr:last-child td{border-bottom:0}
+  td.l{text-align:left}
+  td.pos{color:var(--faint);font-weight:600;width:20px;font-size:12px}
+  td.team{font-weight:600}
+  td.team .swatch{display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:var(--c);margin-right:7px;vertical-align:middle}
+  td.own{font-size:12px}
+  td.own span{color:var(--c);background:var(--t);border-radius:999px;padding:2px 8px;font-weight:600}
+  td.own span.none{color:#8b919b;background:#eef0f3}
+  td.pts{font-family:var(--display);font-weight:800;font-size:14px}
+  td.st .sdot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  tr.qual{background:linear-gradient(90deg,rgba(14,159,110,.06),transparent)}
+  tr.rowdim{opacity:.26}
+  tr.rowhi td.team{color:var(--c)}
+  .cutline td{border-bottom:2px dashed #d6dbe2 !important}
+
+  footer{margin-top:30px;color:var(--muted);font-size:12px;line-height:1.6;
+    border-top:1px solid var(--line);padding-top:16px}
+  footer b{color:var(--ink)}
+
+  @media (max-width:560px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+    .houses{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+  :focus-visible{outline:2.5px solid #1763b6;outline-offset:2px;border-radius:6px}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="band-inner">
+    <div class="kicker">Mondial 2026 · Draft Competition</div>
+    <h1>Draft Tracker</h1>
+    <p class="sub">Seven owners, forty-two drafted nations, twelve houses. Pick an owner to light up their teams across every group. <b>Live to June&nbsp;20.</b></p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <div class="controls-inner">
+      <div class="row">
+        <div class="seg" role="tablist" aria-label="View">
+          <button id="vTeams" role="tab" aria-pressed="true" onclick="setView('teams')">Teams</button>
+          <button id="vHouses" role="tab" aria-pressed="false" onclick="setView('houses')">Houses</button>
+        </div>
+        <div class="seg small" aria-label="Status filter">
+          <button id="sAll" aria-pressed="true" onclick="setStatus('all')">All</button>
+          <button id="sLive" aria-pressed="false" onclick="setStatus('active')">Active</button>
+          <button id="sOut" aria-pressed="false" onclick="setStatus('eliminated')">Eliminated</button>
+        </div>
+        <label class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+          <input id="q" type="search" placeholder="Search team…" oninput="render()" autocomplete="off" aria-label="Search team">
+        </label>
+        <button id="refreshBtn" class="refresh" onclick="loadData(true)" title="Reload the latest results">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div class="owners" id="owners"></div>
+      <div class="hint" id="hint"></div>
+      <div class="stamp" id="stamp"></div>
+    </div>
+  </div>
+
+  <section id="teamsView">
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="housesView" hidden>
+    <div class="houses" id="houses"></div>
+  </section>
+
+  <footer>
+    <b>Status</b> is mathematical elimination — as of June 20 no drafted team is out, so all show Active. Tap any status to mark a team eliminated as results land (in-session). <br>
+    <b>Houses</b> are the twelve World Cup groups (A–L); the shaded top two rows and the dashed line mark the automatic qualification places (third can still advance as a best-third). Records reflect games played through June 19–20, 2026.
+  </footer>
+</div>
+
+<script>
+const OWNERS = ["Sawel","Raj","Levy","Yonale","Niro","Foot","Shako"];
+const OWNER_LABEL = {Sawel:"Sawel",Raj:"Raj",Levy:"Levy",Yonale:"Yonale",Niro:"Niro",Foot:"Foot",Shako:"Shako Shoulders"};
+
+// team: [name, group, owner|null, W, D, L, GF, GA]  — Pts derived, status defaults active
+const RAW = [
+ ["Mexico","A","Yonale",2,0,0,3,0],["South Korea","A","Levy",1,0,1,2,2],["Czechia","A","Foot",0,1,1,2,3],["South Africa","A",null,0,1,1,1,3],
+ ["Canada","B","Sawel",1,1,0,7,1],["Switzerland","B","Raj",1,1,0,5,2],["Bosnia","B","Levy",0,1,1,2,5],["Qatar","B",null,0,1,1,1,7],
+ ["Brazil","C","Raj",1,1,0,4,1],["Morocco","C","Yonale",1,1,0,2,1],["Scotland","C","Raj",1,0,1,1,1],["Haiti","C",null,0,0,2,0,4],
+ ["USA","D","Niro",2,0,0,6,1],["Australia","D","Niro",1,0,1,2,2],["Turkiye","D","Niro",0,0,1,0,2],["Paraguay","D","Yonale",0,0,1,1,4],
+ ["Germany","E","Shako",1,0,0,7,1],["Ivory Coast","E","Yonale",1,0,0,1,0],["Ecuador","E","Levy",0,0,1,0,1],["Curacao","E",null,0,0,1,1,7],
+ ["Sweden","F","Yonale",1,0,0,5,1],["Japan","F","Sawel",0,1,0,2,2],["Netherlands","F","Niro",0,1,0,2,2],["Tunisia","F","Foot",0,0,1,1,5],
+ ["New Zealand","G","Sawel",0,1,0,2,2],["Iran","G","Shako",0,1,0,2,2],["Egypt","G","Yonale",0,1,0,1,1],["Belgium","G","Foot",0,1,0,1,1],
+ ["Saudi Arabia","H","Shako",0,1,0,1,1],["Uruguay","H","Shako",0,1,0,1,1],["Spain","H","Levy",0,1,0,0,0],["Cape Verde","H","Levy",0,1,0,0,0],
+ ["Norway","I","Foot",1,0,0,4,1],["France","I","Foot",1,0,0,3,1],["Senegal","I","Sawel",0,0,1,1,3],["Iraq","I",null,0,0,1,1,4],
+ ["Argentina","J","Sawel",1,0,0,3,0],["Austria","J","Shako",1,0,0,3,1],["Jordan","J",null,0,0,1,1,3],["Algeria","J","Sawel",0,0,1,0,3],
+ ["Colombia","K","Levy",1,0,0,3,1],["DR Congo","K","Raj",0,1,0,1,1],["Portugal","K","Niro",0,1,0,1,1],["Uzbekistan","K","Niro",0,0,1,1,3],
+ ["England","L","Raj",1,0,0,4,2],["Ghana","L","Foot",1,0,0,1,0],["Panama","L","Raj",0,0,1,0,1],["Croatia","L","Shako",0,0,1,2,4],
+];
+// ── Live data source ─────────────────────────────────────────────
+// FIFA's own JSON API. The page tries it directly first; if the browser
+// blocks it (CORS), it retries through a public proxy, then finally
+// falls back to the built-in snapshot below so the page never breaks.
+const FIFA_API = "https://api.fifa.com/api/v3/calendar/17/285023/289273/standing?language=en&count=200";
+// tried in order until one connects; "get" = allorigins JSON-wrapped, others = raw passthrough
+const PROXIES = [
+  u => ({u:"https://api.allorigins.win/raw?url="+encodeURIComponent(u), wrap:"raw",  tag:"allorigins"}),
+  u => ({u:"https://api.allorigins.win/get?url="+encodeURIComponent(u), wrap:"get",  tag:"allorigins2"}),
+  u => ({u:"https://corsproxy.io/?url="+encodeURIComponent(u),          wrap:"raw",  tag:"corsproxy"}),
+  u => ({u:"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u), wrap:"raw", tag:"codetabs"}),
+  u => ({u:"https://thingproxy.freeboard.io/fetch/"+u,                  wrap:"raw",  tag:"thingproxy"}),
+];
+const DATA_URL = "";   // optional: your own JSON feed (array of team rows); takes priority if set
+// ─────────────────────────────────────────────────────────────────
+
+// owners are fixed for the tournament — keyed by canonical team name
+const OWNER_MAP = {}; RAW.forEach(r=> OWNER_MAP[r[0]] = r[2]);
+
+// FIFA → our canonical names
+const CANON = {}; RAW.forEach(r=> CANON[norm(r[0])] = r[0]);
+const ALIASES = {
+  "korea republic":"South Korea","republic of korea":"South Korea",
+  "united states":"USA","united states of america":"USA",
+  "turkiye":"Turkiye","turkey":"Turkiye",
+  "cote divoire":"Ivory Coast","cote d ivoire":"Ivory Coast",
+  "ir iran":"Iran",
+  "cabo verde":"Cape Verde",
+  "bosnia and herzegovina":"Bosnia","bosnia herzegovina":"Bosnia",
+  "czech republic":"Czechia",
+  "congo dr":"DR Congo","democratic republic of the congo":"DR Congo","congo":"DR Congo",
+};
+function norm(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .replace(/[^a-z ]/gi,"").trim().replace(/\s+/g," ").toLowerCase(); }
+function canonName(s){ const n=norm(s); return ALIASES[n] || CANON[n] || s; }
+
+// parse FIFA v3 "standing" payload into our row shape
+function pickEn(v){ if(Array.isArray(v)){ const e=v.find(x=>x.Locale==="en")||v[0]; return e&&(e.Description||e.Name)||""; } return v||""; }
+function parseFifa(json){
+  const rows = json.Results || json.results || json.Standings || [];
+  return rows.map(it=>{
+    const t = it.Team || {};
+    const name = canonName(pickEn(t.TeamName) || pickEn(it.TeamName) || it.IdTeam || "");
+    let g = pickEn(it.Group) || pickEn(it.GroupName) || it.IdGroup || "";
+    const m = String(g).match(/group\s*([a-l])/i) || String(g).match(/\b([A-L])\b/);
+    return { name, group: m ? m[1].toUpperCase() : String(g),
+             w:+it.Won||0, d:+it.Drawn||0, l:+it.Lost||0, gf:+it.For||0, ga:+it.Against||0 };
+  }).filter(r=>r.name && /^[A-L]$/.test(r.group));
+}
+
+let TEAMS = [], GROUPS = [], RANK = {}, lastUpdated = null;
+
+function buildData(rows){
+  TEAMS = rows.map(r=>{
+    const o = Array.isArray(r)
+      ? {name:r[0],group:r[1],owner:r[2],w:r[3],d:r[4],l:r[5],gf:r[6],ga:r[7]}
+      : r;
+    const owner = OWNERS.includes(o.owner) ? o.owner : (OWNER_MAP[o.name] || null);
+    const w=+o.w||0, d=+o.d||0, l=+o.l||0, gf=+o.gf||0, ga=+o.ga||0;
+    return {name:o.name, group:o.group, owner, w, d, l, gf, ga,
+            pts:w*3+d, gd:gf-ga, status:o.status==="eliminated"?"eliminated":"active"};
+  });
+  GROUPS = [...new Set(TEAMS.map(t=>t.group))].sort();
+  RANK = {};
+  GROUPS.forEach(g=>{
+    const sorted = TEAMS.filter(t=>t.group===g)
+      .sort((a,b)=> b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
+    const key = t => t.pts+"|"+t.gd+"|"+t.gf;
+    sorted.forEach(t=>{
+      const pos = sorted.findIndex(x=>key(x)===key(t)) + 1;
+      const tied = sorted.filter(x=>key(x)===key(t)).length > 1;
+      RANK[t.name] = {pos, tied};
+    });
+  });
+}
+
+async function fetchText(url, ms){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), ms||6000);   // never hang on a dead proxy
+  try{
+    const res = await fetch(url, {cache:"no-store", signal:ctrl.signal});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return await res.text();
+  } finally { clearTimeout(timer); }
+}
+async function fetchJson(url){ return JSON.parse(await fetchText(url)); }
+async function fetchViaProxy(p){
+  const text = await fetchText(p.u);
+  if(p.wrap==="get"){ const o = JSON.parse(text); return JSON.parse(o.contents); }
+  return JSON.parse(text);
+}
+
+async function loadData(manual){
+  const btn = document.getElementById("refreshBtn");
+  if(btn){ btn.classList.add("spin"); btn.disabled = true; }
+  let rows = null, src = "", level = "snapshot", tried = [];
+
+  if(DATA_URL){
+    try{ const j = await fetchJson(DATA_URL + (DATA_URL.includes("?")?"&":"?") + "_=" + Date.now());
+         const r = Array.isArray(j)? j : j.teams; if(r&&r.length){ rows=r; src="your feed"; level="live"; } }
+    catch(e){ tried.push("feed✗"); }
+  }
+  if(!rows && FIFA_API){
+    try{ console.info("[tracker] trying FIFA direct…"); rows = parseFifa(await fetchJson(FIFA_API));
+         if(rows.length){ src="FIFA · direct"; level="live"; } else rows=null; }
+    catch(e){ tried.push("direct✗"); console.warn("[tracker] direct failed:", e.message); }
+    if(!rows){
+      for(const make of PROXIES){
+        const p = make(FIFA_API);
+        try{ console.info("[tracker] trying proxy "+p.tag+"…"); const r = parseFifa(await fetchViaProxy(p));
+             if(r.length){ rows=r; src="FIFA · "+p.tag; level="proxy"; break; } }
+        catch(e){ tried.push(p.tag+"✗"); console.warn("[tracker] "+p.tag+" failed:", e.message); }
+      }
+    }
+  }
+  if(rows && rows.length) console.info("[tracker] loaded", rows.length, "teams via", src);
+  if(rows && rows.length){ buildData(rows); }
+  else { buildData(RAW); level="blocked"; src = "built-in snapshot" + (tried.length?` (${tried.join(" ")})`:""); }
+
+  lastUpdated = new Date();
+  if(btn){ btn.classList.remove("spin"); btn.disabled = false; }
+  updateStamp(src, (rows&&rows.length)||TEAMS.length, level);
+  buildOwners(); render();
+}
+
+function updateStamp(src, n, level){
+  const el = document.getElementById("stamp"); if(!el) return;
+  const t = lastUpdated.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+  const col = {live:"#0e9f6e", proxy:"#d9930a", snapshot:"#8b919b", blocked:"#c2302a"}[level] || "#8b919b";
+  el.innerHTML = `<span class="srcdot" style="background:${col}"></span>Updated ${t} · ${src} · ${n} teams`;
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+
+// guaranteed-anywhere manual update: load FIFA's JSON (or our array) from a file
+
+const ordN = n => n===1?"1st":n===2?"2nd":n===3?"3rd":n+"th";
+const ord = name => (RANK[name].tied?"T-":"") + ordN(RANK[name].pos);
+
+let view="teams", statusFilter="all", ownerSel=new Set();
+const ocls = o => o ? ("o-"+o) : "o-none";
+const ownerChosen = t => ownerSel.size===0 || ownerSel.has(t.owner);
+
+/* ---------- owner chips ---------- */
+function buildOwners(){
+  const el = document.getElementById("owners");
+  const counts={}; OWNERS.forEach(o=>counts[o]=TEAMS.filter(t=>t.owner===o).length);
+  let html = `<span class="olabel">Owner</span>`;
+  html += `<button class="chip chip-all" aria-pressed="${ownerSel.size===0}" onclick="selOwner(null)">All houses</button>`;
+  OWNERS.forEach(o=>{
+    html += `<button class="chip ${ocls(o)}" data-owner="${o}" aria-pressed="${ownerSel.has(o)}" onclick="selOwner('${o}')">
+      <span class="dot"></span>${OWNER_LABEL[o]}<span class="n">${counts[o]}</span></button>`;
+  });
+  el.innerHTML = html;
+}
+function selOwner(o){
+  if(o===null){ ownerSel.clear(); }
+  else if(ownerSel.has(o)){ ownerSel.delete(o); }
+  else { ownerSel.add(o); }
+  document.querySelector(".chip-all").setAttribute("aria-pressed", ownerSel.size===0 ? "true":"false");
+  document.querySelectorAll("#owners .chip[data-owner]").forEach(c=>
+    c.setAttribute("aria-pressed", ownerSel.has(c.dataset.owner) ? "true":"false"));
+  render();
+}
+function setView(v){ view=v;
+  vTeams.setAttribute("aria-pressed",v==="teams"); vHouses.setAttribute("aria-pressed",v==="houses");
+  teamsView.hidden=(v!=="teams"); housesView.hidden=(v!=="houses"); render();
+}
+function setStatus(s){ statusFilter=s;
+  sAll.setAttribute("aria-pressed",s==="all"); sLive.setAttribute("aria-pressed",s==="active"); sOut.setAttribute("aria-pressed",s==="eliminated");
+  render();
+}
+function toggleStatus(name){
+  const t=TEAMS.find(x=>x.name===name); t.status = t.status==="active"?"eliminated":"active"; render();
+}
+
+function matchQ(t){ const q=document.getElementById("q").value.trim().toLowerCase();
+  return !q || t.name.toLowerCase().includes(q); }
+function passHardFilters(t){ // status + search (owner is highlight, not hard-filter, except teams view)
+  if(statusFilter!=="all" && t.status!==statusFilter) return false;
+  if(!matchQ(t)) return false;
+  return true;
+}
+
+/* ---------- teams grid ---------- */
+function renderTeams(){
+  const grid=document.getElementById("grid");
+  const items = TEAMS
+    .filter(passHardFilters)
+    .filter(ownerChosen)   // owner(s) hard-filter in Teams view
+    .sort((a,b)=> a.group.localeCompare(b.group) || b.pts-a.pts || b.gd-a.gd);
+  if(!items.length){ grid.innerHTML=`<div class="hint" style="padding:8px">No teams match — clear the search or change filters.</div>`; return; }
+  grid.innerHTML = items.map(t=>{
+    const ownTxt = t.owner? OWNER_LABEL[t.owner] : "Unassigned";
+    const sCls = t.status==="active"?"is-live":"is-out";
+    const sTxt = t.status==="active"?"Active":"Eliminated";
+    return `<div class="tcard ${ocls(t.owner)}">
+      <div class="tn">${t.name}</div>
+      <div class="meta"><span class="gtag">Group ${t.group} · ${ord(t.name)}</span>
+        <button class="status ${sCls}" onclick="toggleStatus('${t.name.replace(/'/g,"\\'")}')" title="Tap to toggle"><span class="sdot"></span>${sTxt}</button></div>
+      <div class="meta"><span class="ownerpill"><span class="dot"></span>${ownTxt}</span>
+        <span class="ptsbadge"><b>${t.pts}</b> pts</span></div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- houses ---------- */
+function renderHouses(){
+  const wrap=document.getElementById("houses");
+  wrap.innerHTML = GROUPS.map(g=>{
+    let rows = TEAMS.filter(t=>t.group===g)
+      .sort((a,b)=> b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
+    const ownerCount = ownerSel.size ? rows.filter(t=>ownerSel.has(t.owner)).length : 0;
+    const body = rows.map((t,i)=>{
+      const visible = passHardFilters(t);
+      const isOwner = ownerSel.size && ownerSel.has(t.owner);
+      const dim = ownerSel.size && !ownerSel.has(t.owner);
+      let cls=[];
+      if(i<2) cls.push("qual");
+      if(i===1) cls.push("cutline");
+      if(dim) cls.push("rowdim");
+      if(isOwner) cls.push("rowhi");
+      if(!visible) cls.push("rowdim");
+      const ownTxt = t.owner? OWNER_LABEL[t.owner] : "—";
+      const ownCls = t.owner? "" : "none";
+      const sCol = t.status==="active" ? "var(--live)" : "var(--out)";
+      return `<tr class="${cls.join(' ')}">
+        <td class="pos">${i+1}</td>
+        <td class="l team ${ocls(t.owner)}"><span class="swatch"></span>${t.name}</td>
+        <td class="l own ${ocls(t.owner)}"><span class="${ownCls}">${ownTxt}</span></td>
+        <td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
+        <td class="pts">${t.pts}</td>
+        <td class="st"><span class="sdot" style="background:${sCol}" title="${t.status}"></span></td>
+      </tr>`;
+    }).join("");
+    const note = ownerSel.size ? `<span class="sub2">${ownerCount} selected here</span>` : "";
+    return `<div class="house">
+      <h2><span class="badge">Group ${g}</span>House ${g}${note}</h2>
+      <table>
+        <thead><tr>
+          <th class="l">#</th><th class="l">Team</th><th class="l">Owner</th>
+          <th>W</th><th>D</th><th>L</th><th>Pts</th><th>St</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+  }).join("");
+}
+
+function renderHint(){
+  const el=document.getElementById("hint");
+  const live=TEAMS.filter(t=>t.status==="active").length, out=TEAMS.length-live;
+  if(ownerSel.size){
+    const sel=[...ownerSel];
+    const ts=TEAMS.filter(t=>ownerSel.has(t.owner));
+    const a=ts.filter(t=>t.status==="active").length;
+    const names=sel.map(o=>OWNER_LABEL[o]).join(", ");
+    el.innerHTML = `Showing <b>${names}</b> — ${ts.length} teams, <b>${a} active</b>${view==="houses"?", highlighted across their houses":""}.`;
+  } else {
+    el.innerHTML = `<b>${TEAMS.length}</b> drafted-pool teams · <b>${live} active</b>, ${out} eliminated. Six unassigned nations fill out the houses.`;
+  }
+}
+function render(){ renderHint(); if(view==="teams") renderTeams(); else renderHouses(); }
+
+loadData(false);
+</script>
+</body>
+</html>
