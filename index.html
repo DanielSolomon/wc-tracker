@@ -171,6 +171,10 @@
   .bk-pair > div + div .bk-slot{border-top:1px solid #f1f2f5}
   .bk-team{display:flex;align-items:center;font-size:13px;color:var(--ink);min-width:0}
   .bk-team b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bk-right{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  .bk-own{font-family:var(--display);font-weight:700;font-size:9px;letter-spacing:.04em;
+    color:var(--c);background:var(--t);border-radius:5px;padding:2px 5px;line-height:1}
+  .bk-dim{opacity:.3}
   .bk-slot.ph .bk-team{color:var(--faint);font-size:11.5px;font-style:italic}
   .bk-slot.ph .flag{display:none}
   .bk-score{font-family:var(--display);font-weight:800;font-size:13px;color:var(--muted);
@@ -202,7 +206,7 @@
   <div class="band-inner">
     <div class="kicker">Mondial 2026 · Draft Competition</div>
     <h1>Draft Tracker</h1>
-    <p class="sub">Seven owners, forty-two drafted nations, twelve houses. Pick an owner to light up their teams across every group. <b>Live to June&nbsp;20.</b></p>
+    <p class="sub">Seven owners, forty-two drafted nations, twelve houses. Pick an owner to light up their teams across every group and the knockout bracket.</p>
   </div>
 </header>
 
@@ -256,6 +260,7 @@
 <script>
 const OWNERS = ["Sawel","Raj","Levy","Yonale","Niro","Foot","Shako"];
 const OWNER_LABEL = {Sawel:"Sawel",Raj:"Raj",Levy:"Levy",Yonale:"Yonale",Niro:"Niro",Foot:"Foot",Shako:"Shako Shoulders"};
+const OWNER_ABBR = {Sawel:"SAW",Raj:"RAJ",Levy:"LEV",Yonale:"YON",Niro:"NIR",Foot:"FOO",Shako:"SHK"};
 
 // team: [name, group, owner|null, W, D, L, GF, GA]  — Pts derived, status defaults active
 const RAW = [
@@ -361,7 +366,7 @@ function parseMatches(json){
   const rows = json.Results || json.results || [];
   return rows.map(m=>({
     id: m.IdMatch, number: m.MatchNumber, stage: enDesc(m.StageName),
-    date: m.LocalDate || m.Date,
+    date: m.Date || m.LocalDate,
     phA: m.PlaceHolderA, phB: m.PlaceHolderB,
     home: koSlot(m.Home, m.HomeTeamScore, m.HomeTeamPenaltyScore, m.PlaceHolderA),
     away: koSlot(m.Away, m.AwayTeamScore, m.AwayTeamPenaltyScore, m.PlaceHolderB),
@@ -403,8 +408,10 @@ function prettyPH(ph){
 function koDate(iso){
   if(!iso) return "";
   const d = new Date(iso);
-  return d.toLocaleDateString([], {month:"short", day:"numeric"}) + " · " +
-         d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  if(isNaN(d)) return "";
+  const o = {timeZone:"Asia/Jerusalem"};
+  return d.toLocaleDateString("en-GB", {...o, month:"short", day:"numeric"}) + " · " +
+         d.toLocaleTimeString("en-GB", {...o, hour:"2-digit", minute:"2-digit"});
 }
 
 let TEAMS = [], GROUPS = [], RANK = {}, lastUpdated = null;
@@ -511,7 +518,7 @@ const ownerChosen = t => ownerSel.size===0 || ownerSel.has(t.owner);
 /* ---------- owner chips ---------- */
 function buildOwners(){
   const el = document.getElementById("owners");
-  const counts={}; OWNERS.forEach(o=>counts[o]=TEAMS.filter(t=>t.owner===o).length);
+  const counts={}; OWNERS.forEach(o=>counts[o]=TEAMS.filter(t=>t.owner===o && (statusFilter==="all"||t.status===statusFilter)).length);
   let html = `<span class="olabel">Owner</span>`;
   html += `<button class="chip chip-all" aria-pressed="${ownerSel.size===0}" onclick="selOwner(null)">All houses</button>`;
   OWNERS.forEach(o=>{
@@ -535,10 +542,10 @@ function setView(v){ view=v;
 }
 function setStatus(s){ statusFilter=s;
   sAll.setAttribute("aria-pressed",s==="all"); sLive.setAttribute("aria-pressed",s==="active"); sOut.setAttribute("aria-pressed",s==="eliminated");
-  render();
+  buildOwners(); render();
 }
 function toggleStatus(name){
-  const t=TEAMS.find(x=>x.name===name); t.status = t.status==="active"?"eliminated":"active"; render();
+  const t=TEAMS.find(x=>x.name===name); t.status = t.status==="active"?"eliminated":"active"; buildOwners(); render();
 }
 
 function matchQ(t){ const q=document.getElementById("q").value.trim().toLowerCase();
@@ -630,13 +637,17 @@ function renderHint(){
 function slotHTML(s){
   if(s.name){
     const own = OWNER_MAP[s.name];
-    const win = (s.score!=null);
-    return `<div class="bk-slot ${own?ocls(own):''} ${win?'has':''}">
+    const score = s.score!=null ? s.score : "";
+    const pen = s.pen!=null ? ` <em>(${s.pen})</em>` : "";
+    const badge = own ? `<span class="bk-own ${ocls(own)}">${OWNER_ABBR[own]}</span>` : "";
+    const dim = ownerSel.size && !(own && ownerSel.has(own));
+    return `<div class="bk-slot ${own?ocls(own):''} ${dim?'bk-dim':''}">
       <span class="bk-team">${flag(s.name)}<b>${s.name}</b></span>
-      <span class="bk-score">${s.score!=null?s.score:""}${s.pen!=null?` <em>(${s.pen})</em>`:""}</span>
+      <span class="bk-right">${badge}<span class="bk-score">${score}${pen}</span></span>
     </div>`;
   }
-  return `<div class="bk-slot ph"><span class="bk-team">${prettyPH(s.ph)}</span><span class="bk-score"></span></div>`;
+  const dimPh = ownerSel.size; // placeholders belong to no owner → dim when filtering
+  return `<div class="bk-slot ph ${dimPh?'bk-dim':''}"><span class="bk-team">${prettyPH(s.ph)}</span><span class="bk-right"><span class="bk-score"></span></span></div>`;
 }
 function matchHTML(m){
   const decided = m.home.score!=null && m.away.score!=null;
