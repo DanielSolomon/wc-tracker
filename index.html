@@ -266,43 +266,26 @@ function norm(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .replace(/[^a-z ]/gi,"").trim().replace(/\s+/g," ").toLowerCase(); }
 function canonName(s){ const n=norm(s); return ALIASES[n] || CANON[n] || s; }
 
-// parse FIFA v3 "standing" payload — field-agnostic: find the country name and
-// group letter wherever FIFA nests them, by matching against the known team list.
+// parse FIFA v3 "standing" payload — using the documented field locations.
 const KNOWN_NAME = {};  // normalized variant -> canonical
 RAW.forEach(r=> KNOWN_NAME[norm(r[0])] = r[0]);
 Object.entries(ALIASES).forEach(([k,v])=> KNOWN_NAME[k] = v);
 
-function deepStrings(v, out){
-  if(v==null) return;
-  if(typeof v==="string"){ out.push(v); return; }
-  if(typeof v==="object"){ for(const k in v) deepStrings(v[k], out); }
-}
-function findName(it){
-  const out=[]; deepStrings(it, out);
-  for(const s of out){ const hit = KNOWN_NAME[norm(s)]; if(hit) return hit; }
-  return null;
-}
-function findGroup(it){
-  let g = it.IdGroup || "";
-  const out=[]; deepStrings(it, out);
-  const hit = out.find(s=>/group\s*[a-l]\b/i.test(s));
-  if(hit) g = hit;
-  const m = String(g).match(/group\s*([a-l])/i);
-  return m ? m[1].toUpperCase() : "";
-}
+function enDesc(arr){ if(Array.isArray(arr)){ const e=arr.find(x=>/^en/i.test(x.Locale))||arr[0]; return e&&e.Description||""; } return ""; }
 function parseFifa(json){
-  const rows = json.Results || json.results || json.Standings || json.Standing || [];
-  if(rows[0]) console.info("[tracker] sample FIFA record:", JSON.stringify(rows[0]).slice(0,400));
-  const num = (it, ...keys)=>{ for(const k of keys){ if(it[k]!=null && it[k]!=="") return +it[k]||0; } return 0; };
-  return rows.map(it=>({
-    name:  findName(it),
-    group: findGroup(it),
-    w:  num(it,"Won","Win","Wins","W"),
-    d:  num(it,"Drawn","Draw","Draws","Tied","D"),
-    l:  num(it,"Lost","Loss","Losses","L"),
-    gf: num(it,"For","GoalsFor","GoalsScored","GF"),
-    ga: num(it,"Against","GoalsAgainst","GoalsConceded","GA"),
-  })).filter(r=> r.name && /^[A-L]$/.test(r.group));
+  const rows = json.Results || json.results || json.Standings || [];
+  if(rows[0]) console.info("[tracker] sample team:", enDesc(rows[0].Team&&rows[0].Team.Name), "| group:", enDesc(rows[0].Group), "| status:", rows[0].QualificationStatus);
+  return rows.map(it=>{
+    const rawName = enDesc(it.Team && it.Team.Name) || (it.Team && it.Team.ShortClubName) || "";
+    const name = KNOWN_NAME[norm(rawName)] || canonName(rawName);
+    const m = String(enDesc(it.Group)).match(/group\s*([a-l])/i);
+    const status = it.QualificationStatus === "Eliminated" ? "eliminated" : "active";
+    return {
+      name, group: m ? m[1].toUpperCase() : "",
+      w:+it.Won||0, d:+it.Drawn||0, l:+it.Lost||0, gf:+it.For||0, ga:+it.Against||0,
+      status
+    };
+  }).filter(r=> r.name && /^[A-L]$/.test(r.group));
 }
 
 let TEAMS = [], GROUPS = [], RANK = {}, lastUpdated = null;
