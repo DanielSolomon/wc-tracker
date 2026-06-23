@@ -148,6 +148,43 @@
   tr.rowhi td.team{color:var(--c)}
   .cutline td{border-bottom:2px dashed #d6dbe2 !important}
 
+  /* flags */
+  .flag{width:21px;height:auto;border-radius:3px;vertical-align:middle;margin-right:7px;
+    box-shadow:0 0 0 1px rgba(16,20,28,.10);position:relative;top:-1px}
+  td.team .flag{margin-right:6px}
+
+  /* bracket */
+  .bk-scroll{overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch}
+  .bk{display:flex;gap:26px;min-width:max-content;padding:4px 2px}
+  .bk-col{display:flex;flex-direction:column;min-width:208px}
+  .bk-head{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);text-align:center;padding:6px 0 12px}
+  .bk-colmatches{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:14px}
+  .bk-match{background:var(--card);border:1px solid var(--line);border-radius:11px;
+    box-shadow:0 1px 2px rgba(16,20,28,.05);overflow:hidden}
+  .bk-when{font-size:10px;color:var(--faint);padding:5px 9px 3px;font-variant-numeric:tabular-nums;
+    border-bottom:1px solid #f1f2f5}
+  .bk-pair{display:flex;flex-direction:column}
+  .bk-slot{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:7px 9px;border-left:3px solid transparent}
+  .bk-slot.o-Sawel,.bk-slot.o-Raj,.bk-slot.o-Levy,.bk-slot.o-Yonale,.bk-slot.o-Niro,.bk-slot.o-Foot,.bk-slot.o-Shako{border-left-color:var(--c)}
+  .bk-pair > div + div .bk-slot{border-top:1px solid #f1f2f5}
+  .bk-team{display:flex;align-items:center;font-size:13px;color:var(--ink);min-width:0}
+  .bk-team b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bk-slot.ph .bk-team{color:var(--faint);font-size:11.5px;font-style:italic}
+  .bk-slot.ph .flag{display:none}
+  .bk-score{font-family:var(--display);font-weight:800;font-size:13px;color:var(--muted);
+    font-variant-numeric:tabular-nums;flex:0 0 auto}
+  .bk-score em{font-style:normal;font-size:10px;color:var(--faint)}
+  .bk-win .bk-slot{background:linear-gradient(90deg,rgba(14,159,110,.09),transparent)}
+  .bk-win .bk-slot .bk-team b{color:var(--ink)}
+  .bk-win .bk-score{color:var(--live)}
+  .bk-third{margin-top:18px;border-top:1px dashed #d6dbe2;padding-top:12px}
+  .bk-thirdlabel{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+    text-align:center;margin-bottom:6px}
+  .bk-empty{max-width:520px;color:var(--muted);font-size:13px;line-height:1.6;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+
   footer{margin-top:30px;color:var(--muted);font-size:12px;line-height:1.6;
     border-top:1px solid var(--line);padding-top:16px}
   footer b{color:var(--ink)}
@@ -176,6 +213,7 @@
         <div class="seg" role="tablist" aria-label="View">
           <button id="vTeams" role="tab" aria-pressed="true" onclick="setView('teams')">Teams</button>
           <button id="vHouses" role="tab" aria-pressed="false" onclick="setView('houses')">Houses</button>
+          <button id="vBracket" role="tab" aria-pressed="false" onclick="setView('bracket')">Bracket</button>
         </div>
         <div class="seg small" aria-label="Status filter">
           <button id="sAll" aria-pressed="true" onclick="setStatus('all')">All</button>
@@ -203,6 +241,10 @@
 
   <section id="housesView" hidden>
     <div class="houses" id="houses"></div>
+  </section>
+
+  <section id="bracketView" hidden>
+    <div class="bk-scroll"><div class="bk" id="bracket"></div></div>
   </section>
 
   <footer>
@@ -288,6 +330,83 @@ function parseFifa(json){
   }).filter(r=> r.name && /^[A-L]$/.test(r.group));
 }
 
+// flags via flagcdn, keyed by canonical name (gb-eng / gb-sct for home nations)
+const ISO2 = {
+ "Spain":"es","France":"fr","Argentina":"ar","Germany":"de","England":"gb-eng","Portugal":"pt",
+ "Morocco":"ma","Netherlands":"nl","Mexico":"mx","Croatia":"hr","Brazil":"br","Belgium":"be",
+ "Colombia":"co","Senegal":"sn","Norway":"no","Japan":"jp","Switzerland":"ch","Turkiye":"tr",
+ "Ivory Coast":"ci","Uruguay":"uy","South Korea":"kr","Austria":"at","Ecuador":"ec","USA":"us",
+ "Canada":"ca","Czechia":"cz","Egypt":"eg","Scotland":"gb-sct","Panama":"pa","Iran":"ir",
+ "Paraguay":"py","Tunisia":"tn","Bosnia":"ba","Algeria":"dz","Uzbekistan":"uz","Sweden":"se",
+ "Australia":"au","Ghana":"gh","Cape Verde":"cv","New Zealand":"nz","DR Congo":"cd","Saudi Arabia":"sa",
+ "South Africa":"za","Jordan":"jo","Qatar":"qa","Curacao":"cw","Iraq":"iq","Haiti":"ht"
+};
+function flag(name){
+  const c = ISO2[name]; if(!c) return "";
+  return `<img class="flag" src="https://flagcdn.com/w40/${c}.png" srcset="https://flagcdn.com/w80/${c}.png 2x" alt="" loading="lazy" onerror="this.style.display='none'">`;
+}
+
+// ── Knockout bracket feed ──
+const KO_API = "https://api.fifa.com/api/v3/calendar/matches?language=en&count=120&idSeason=285023&from=2026-06-27";
+let BRACKET = null;
+
+function koSlot(teamObj, score, pen, ph){
+  if(teamObj){
+    const nm = canonName(enDesc(teamObj.TeamName) || teamObj.ShortClubName || "");
+    return { name:nm, score:(score==null?null:+score), pen:(pen==null?null:+pen), ph:null };
+  }
+  return { name:null, score:null, pen:null, ph: ph||"" };
+}
+function parseMatches(json){
+  const rows = json.Results || json.results || [];
+  return rows.map(m=>({
+    id: m.IdMatch, number: m.MatchNumber, stage: enDesc(m.StageName),
+    date: m.LocalDate || m.Date,
+    phA: m.PlaceHolderA, phB: m.PlaceHolderB,
+    home: koSlot(m.Home, m.HomeTeamScore, m.HomeTeamPenaltyScore, m.PlaceHolderA),
+    away: koSlot(m.Away, m.AwayTeamScore, m.AwayTeamPenaltyScore, m.PlaceHolderB),
+    city: enDesc(m.Stadium && m.Stadium.CityName),
+  })).filter(m=> /round of|final|third/i.test(m.stage));
+}
+// build columns in top-to-bottom order via in-order DFS of the W-reference tree
+function buildBracket(matches){
+  if(!matches || !matches.length) return null;
+  const byW = {}; matches.forEach(m=> byW["W"+m.number] = m);
+  const final = matches.find(m=> /^final$/i.test(m.stage));
+  const third = matches.find(m=> /third/i.test(m.stage));
+  const order = ["Round of 32","Round of 16","Quarter-final","Semi-final","Final"];
+  const cols = {}; order.forEach(s=> cols[s]=[]);
+  const seen = new Set();
+  const keyOf = m => m.id || ("W"+m.number);
+  (function visit(m){
+    if(!m || seen.has(keyOf(m))) return;
+    seen.add(keyOf(m));
+    const a = byW[m.phA], b = byW[m.phB];
+    if(a) visit(a);
+    (cols[m.stage] = cols[m.stage]||[]).push(m);
+    if(b) visit(b);
+  })(final);
+  // append any KO matches not reachable from the final (safety)
+  matches.forEach(m=>{ if(!seen.has(keyOf(m)) && cols[m.stage] && !/third/i.test(m.stage)){ cols[m.stage].push(m); seen.add(keyOf(m));} });
+  return { cols, order: order.filter(s=> cols[s] && cols[s].length), third };
+}
+function prettyPH(ph){
+  if(!ph) return "TBD";
+  let m;
+  if(/^W\d+/.test(ph)) return "Winner M"+ph.slice(1);
+  if(/^RU\d+/.test(ph)) return "Loser M"+ph.slice(2);
+  if(m=ph.match(/^1([A-L])$/)) return "Winner Grp "+m[1];
+  if(m=ph.match(/^2([A-L])$/)) return "Runner-up "+m[1];
+  if(m=ph.match(/^3([A-L]+)$/)) return "3rd "+m[1].split("").join("/");
+  return ph;
+}
+function koDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString([], {month:"short", day:"numeric"}) + " · " +
+         d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+}
+
 let TEAMS = [], GROUPS = [], RANK = {}, lastUpdated = null;
 
 function buildData(rows){
@@ -357,6 +476,15 @@ async function loadData(manual){
   if(rows && rows.length){ buildData(rows); }
   else { buildData(RAW); level="blocked"; src = "built-in snapshot" + (tried.length?` (${tried.join(" ")})`:""); }
 
+  // knockout bracket (best-effort; bracket just stays empty if unreachable)
+  try{
+    let kjson = null;
+    try{ kjson = await fetchJson(KO_API); }catch(e){
+      for(const make of PROXIES){ try{ kjson = await fetchViaProxy(make(KO_API)); if(kjson) break; }catch(_){} }
+    }
+    if(kjson){ const ms = parseMatches(kjson); if(ms.length){ BRACKET = buildBracket(ms); console.info("[tracker] bracket:", ms.length, "matches (live)"); } }
+  }catch(e){ console.warn("[tracker] bracket fetch failed:", e.message); }
+
   lastUpdated = new Date();
   if(btn){ btn.classList.remove("spin"); btn.disabled = false; }
   updateStamp(src, (rows&&rows.length)||TEAMS.length, level);
@@ -402,8 +530,8 @@ function selOwner(o){
   render();
 }
 function setView(v){ view=v;
-  vTeams.setAttribute("aria-pressed",v==="teams"); vHouses.setAttribute("aria-pressed",v==="houses");
-  teamsView.hidden=(v!=="teams"); housesView.hidden=(v!=="houses"); render();
+  vTeams.setAttribute("aria-pressed",v==="teams"); vHouses.setAttribute("aria-pressed",v==="houses"); vBracket.setAttribute("aria-pressed",v==="bracket");
+  teamsView.hidden=(v!=="teams"); housesView.hidden=(v!=="houses"); bracketView.hidden=(v!=="bracket"); render();
 }
 function setStatus(s){ statusFilter=s;
   sAll.setAttribute("aria-pressed",s==="all"); sLive.setAttribute("aria-pressed",s==="active"); sOut.setAttribute("aria-pressed",s==="eliminated");
@@ -434,7 +562,7 @@ function renderTeams(){
     const sCls = t.status==="active"?"is-live":"is-out";
     const sTxt = t.status==="active"?"Active":"Eliminated";
     return `<div class="tcard ${ocls(t.owner)}">
-      <div class="tn">${t.name}</div>
+      <div class="tn">${flag(t.name)}${t.name}</div>
       <div class="meta"><span class="gtag">Group ${t.group} · ${ord(t.name)}</span>
         <button class="status ${sCls}" onclick="toggleStatus('${t.name.replace(/'/g,"\\'")}')" title="Tap to toggle"><span class="sdot"></span>${sTxt}</button></div>
       <div class="meta"><span class="ownerpill"><span class="dot"></span>${ownTxt}</span>
@@ -465,7 +593,7 @@ function renderHouses(){
       const sCol = t.status==="active" ? "var(--live)" : "var(--out)";
       return `<tr class="${cls.join(' ')}">
         <td class="pos">${i+1}</td>
-        <td class="l team ${ocls(t.owner)}"><span class="swatch"></span>${t.name}</td>
+        <td class="l team ${ocls(t.owner)}"><span class="swatch"></span>${flag(t.name)}${t.name}</td>
         <td class="l own ${ocls(t.owner)}"><span class="${ownCls}">${ownTxt}</span></td>
         <td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
         <td class="pts">${t.pts}</td>
@@ -499,7 +627,52 @@ function renderHint(){
     el.innerHTML = `<b>${TEAMS.length}</b> drafted-pool teams · <b>${live} active</b>, ${out} eliminated. Six unassigned nations fill out the houses.`;
   }
 }
-function render(){ renderHint(); if(view==="teams") renderTeams(); else renderHouses(); }
+function slotHTML(s){
+  if(s.name){
+    const own = OWNER_MAP[s.name];
+    const win = (s.score!=null);
+    return `<div class="bk-slot ${own?ocls(own):''} ${win?'has':''}">
+      <span class="bk-team">${flag(s.name)}<b>${s.name}</b></span>
+      <span class="bk-score">${s.score!=null?s.score:""}${s.pen!=null?` <em>(${s.pen})</em>`:""}</span>
+    </div>`;
+  }
+  return `<div class="bk-slot ph"><span class="bk-team">${prettyPH(s.ph)}</span><span class="bk-score"></span></div>`;
+}
+function matchHTML(m){
+  const decided = m.home.score!=null && m.away.score!=null;
+  let winHome=false, winAway=false;
+  if(decided){
+    const hs=m.home.score+(m.home.pen||0)/100, as=m.away.score+(m.away.pen||0)/100;
+    winHome = hs>as; winAway = as>hs;
+  }
+  return `<div class="bk-match">
+    <div class="bk-when">M${m.number} · ${koDate(m.date)}</div>
+    <div class="bk-pair">
+      <div class="${winHome?'bk-win':''}">${slotHTML(m.home)}</div>
+      <div class="${winAway?'bk-win':''}">${slotHTML(m.away)}</div>
+    </div>
+  </div>`;
+}
+function renderBracket(){
+  const el = document.getElementById("bracket");
+  if(!BRACKET){
+    el.innerHTML = `<div class="bk-empty"><b>Couldn't load the bracket.</b> The knockout feed didn't respond (the FIFA API blocked the request, or no proxy got through). Hit Refresh to retry — see the console for <b>[tracker] bracket fetch failed</b> details.</div>`;
+    return;
+  }
+  const labelShort = {"Round of 32":"Round of 32","Round of 16":"Round of 16","Quarter-final":"Quarter-finals","Semi-final":"Semi-finals","Final":"Final"};
+  let html = "";
+  BRACKET.order.forEach(stage=>{
+    html += `<div class="bk-col"><div class="bk-head">${labelShort[stage]||stage}</div><div class="bk-colmatches">`;
+    BRACKET.cols[stage].forEach(m=> html += matchHTML(m));
+    if(stage==="Final" && BRACKET.third){
+      html += `<div class="bk-third"><div class="bk-thirdlabel">Third-place play-off</div>${matchHTML(BRACKET.third)}</div>`;
+    }
+    html += `</div></div>`;
+  });
+  el.innerHTML = html;
+}
+
+function render(){ renderHint(); if(view==="teams") renderTeams(); else if(view==="houses") renderHouses(); else renderBracket(); }
 
 loadData(false);
 </script>
