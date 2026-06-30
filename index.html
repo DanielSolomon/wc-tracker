@@ -358,9 +358,9 @@ let BRACKET = null;
 function koSlot(teamObj, score, pen, ph){
   if(teamObj){
     const nm = canonName(enDesc(teamObj.TeamName) || teamObj.ShortClubName || "");
-    return { name:nm, score:(score==null?null:+score), pen:(pen==null?null:+pen), ph:null };
+    return { name:nm, id:(teamObj.IdTeam||null), score:(score==null?null:+score), pen:(pen==null?null:+pen), ph:null };
   }
-  return { name:null, score:null, pen:null, ph: ph||"" };
+  return { name:null, id:null, score:null, pen:null, ph: ph||"" };
 }
 function parseMatches(json){
   const rows = json.Results || json.results || [];
@@ -370,6 +370,7 @@ function parseMatches(json){
     phA: m.PlaceHolderA, phB: m.PlaceHolderB,
     home: koSlot(m.Home, m.HomeTeamScore, m.HomeTeamPenaltyScore, m.PlaceHolderA),
     away: koSlot(m.Away, m.AwayTeamScore, m.AwayTeamPenaltyScore, m.PlaceHolderB),
+    winnerId: m.Winner || null,
     city: enDesc(m.Stadium && m.Stadium.CityName),
   })).filter(m=> /round of|final|third/i.test(m.stage));
 }
@@ -412,11 +413,18 @@ function koEliminated(matches){
     const a=m.home, b=m.away;
     if(!a.name || !b.name) return;            // need both participants to name a loser
     let win = null;
-    if(a.score!=null && b.score!=null){
+    // 1) FIFA's explicit Winner (team id) — ground truth, no score parsing needed
+    if(m.winnerId && a.id && b.id){
+      if(String(m.winnerId)===String(a.id)) win = a.name;
+      else if(String(m.winnerId)===String(b.id)) win = b.name;
+    }
+    // 2) score, then penalty shootout
+    if(!win && a.score!=null && b.score!=null){
       if(a.score!==b.score) win = a.score>b.score ? a.name : b.name;
       else if(a.pen!=null && b.pen!=null && a.pen!==b.pen) win = a.pen>b.pen ? a.name : b.name;
     }
-    if(!win) win = winnerOf[m.number] || null; // fall back to downstream propagation
+    // 3) winner propagated into the next round's slot
+    if(!win) win = winnerOf[m.number] || null;
     if(win) out.add(win===a.name ? b.name : a.name);
   });
   return out;
