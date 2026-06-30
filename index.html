@@ -252,8 +252,8 @@
   </section>
 
   <footer>
-    <b>Status</b> is mathematical elimination — as of June 20 no drafted team is out, so all show Active. Tap any status to mark a team eliminated as results land (in-session). <br>
-    <b>Houses</b> are the twelve World Cup groups (A–L); the shaded top two rows and the dashed line mark the automatic qualification places (third can still advance as a best-third). Records reflect games played through June 19–20, 2026.
+    <b>Status</b> reflects elimination from the live feed — both group-stage exits and knockout losses (a team that loses its bracket match is marked Eliminated automatically). You can also tap any status to override it in-session.<br>
+    <b>Houses</b> are the twelve World Cup groups (A–L); the shaded top two rows and the dashed line mark the automatic qualification places (third can still advance as a best-third).
   </footer>
 </div>
 
@@ -395,6 +395,32 @@ function buildBracket(matches){
   matches.forEach(m=>{ if(!seen.has(keyOf(m)) && cols[m.stage] && !/third/i.test(m.stage)){ cols[m.stage].push(m); seen.add(keyOf(m));} });
   return { cols, order: order.filter(s=> cols[s] && cols[s].length), third };
 }
+// Teams knocked out in the bracket. The matches feed signals advancement by
+// filling the *next* round's Home/Away slot with the winner (the "W##"
+// placeholder resolves to a real team); the other participant is out. We also
+// honor explicit scores when present.
+function koEliminated(matches){
+  const out = new Set();
+  // winnerOf[N] = name of the team occupying a downstream "W{N}" slot
+  const winnerOf = {};
+  matches.forEach(d=>{
+    [[d.phA, d.home],[d.phB, d.away]].forEach(([ph, slot])=>{
+      if(ph && /^W\d+$/.test(ph) && slot && slot.name) winnerOf[+ph.slice(1)] = slot.name;
+    });
+  });
+  matches.forEach(m=>{
+    const a=m.home, b=m.away;
+    if(!a.name || !b.name) return;            // need both participants to name a loser
+    let win = null;
+    if(a.score!=null && b.score!=null){
+      if(a.score!==b.score) win = a.score>b.score ? a.name : b.name;
+      else if(a.pen!=null && b.pen!=null && a.pen!==b.pen) win = a.pen>b.pen ? a.name : b.name;
+    }
+    if(!win) win = winnerOf[m.number] || null; // fall back to downstream propagation
+    if(win) out.add(win===a.name ? b.name : a.name);
+  });
+  return out;
+}
 function prettyPH(ph){
   if(!ph) return "TBD";
   let m;
@@ -489,7 +515,15 @@ async function loadData(manual){
     try{ kjson = await fetchJson(KO_API); }catch(e){
       for(const make of PROXIES){ try{ kjson = await fetchViaProxy(make(KO_API)); if(kjson) break; }catch(_){} }
     }
-    if(kjson){ const ms = parseMatches(kjson); if(ms.length){ BRACKET = buildBracket(ms); console.info("[tracker] bracket:", ms.length, "matches (live)"); } }
+    if(kjson){ const ms = parseMatches(kjson); if(ms.length){
+      BRACKET = buildBracket(ms);
+      console.info("[tracker] bracket:", ms.length, "matches (live)");
+      const koOut = koEliminated(ms);
+      if(koOut.size){
+        TEAMS.forEach(t=>{ if(koOut.has(t.name)) t.status = "eliminated"; });
+        console.info("[tracker] knockout exits:", [...koOut].join(", "));
+      }
+    } }
   }catch(e){ console.warn("[tracker] bracket fetch failed:", e.message); }
 
   lastUpdated = new Date();
