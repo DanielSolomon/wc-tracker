@@ -252,7 +252,7 @@
   </section>
 
   <footer>
-    <b>Status</b> reflects elimination from the live feed — both group-stage exits and knockout losses (a team that loses its bracket match is marked Eliminated automatically). You can also tap any status to override it in-session.<br>
+    <b>Status</b>: the group stage is final (standings baked in). Knockout losses are then applied live from the bracket feed — a team that loses its bracket match is marked Eliminated automatically. You can also tap any status to override it in-session.<br>
     <b>Houses</b> are the twelve World Cup groups (A–L); the shaded top two rows and the dashed line mark the automatic qualification places (third can still advance as a best-third).
   </footer>
 </div>
@@ -262,27 +262,27 @@ const OWNERS = ["Sawel","Raj","Levy","Yonale","Niro","Foot","Shako"];
 const OWNER_LABEL = {Sawel:"Sawel",Raj:"Raj",Levy:"Levy",Yonale:"Yonale",Niro:"Niro",Foot:"Foot",Shako:"Shako Shoulders"};
 const OWNER_ABBR = {Sawel:"SAW",Raj:"RAJ",Levy:"LEV",Yonale:"YON",Niro:"NIR",Foot:"FOO",Shako:"SHK"};
 
-// team: [name, group, owner|null, W, D, L, GF, GA]  — Pts derived, status defaults active
+// FINAL group-stage table (groups complete). Row: [name, group, owner|null, W, D, L, finalPos, status]
+//   status "out" = eliminated in groups (bottom of group, or a third-place side that missed the cut).
+//   Pts are derived (W*3+D); teams are stored in official finishing order.
 const RAW = [
- ["Mexico","A","Yonale",2,0,0,3,0],["South Korea","A","Levy",1,0,1,2,2],["Czechia","A","Foot",0,1,1,2,3],["South Africa","A",null,0,1,1,1,3],
- ["Canada","B","Sawel",1,1,0,7,1],["Switzerland","B","Raj",1,1,0,5,2],["Bosnia","B","Levy",0,1,1,2,5],["Qatar","B",null,0,1,1,1,7],
- ["Brazil","C","Raj",1,1,0,4,1],["Morocco","C","Yonale",1,1,0,2,1],["Scotland","C","Raj",1,0,1,1,1],["Haiti","C",null,0,0,2,0,4],
- ["USA","D","Niro",2,0,0,6,1],["Australia","D","Niro",1,0,1,2,2],["Turkiye","D","Niro",0,0,1,0,2],["Paraguay","D","Yonale",0,0,1,1,4],
- ["Germany","E","Shako",1,0,0,7,1],["Ivory Coast","E","Yonale",1,0,0,1,0],["Ecuador","E","Levy",0,0,1,0,1],["Curacao","E",null,0,0,1,1,7],
- ["Sweden","F","Yonale",1,0,0,5,1],["Japan","F","Sawel",0,1,0,2,2],["Netherlands","F","Niro",0,1,0,2,2],["Tunisia","F","Foot",0,0,1,1,5],
- ["New Zealand","G","Sawel",0,1,0,2,2],["Iran","G","Shako",0,1,0,2,2],["Egypt","G","Yonale",0,1,0,1,1],["Belgium","G","Foot",0,1,0,1,1],
- ["Saudi Arabia","H","Shako",0,1,0,1,1],["Uruguay","H","Shako",0,1,0,1,1],["Spain","H","Levy",0,1,0,0,0],["Cape Verde","H","Levy",0,1,0,0,0],
- ["Norway","I","Foot",1,0,0,4,1],["France","I","Foot",1,0,0,3,1],["Senegal","I","Sawel",0,0,1,1,3],["Iraq","I",null,0,0,1,1,4],
- ["Argentina","J","Sawel",1,0,0,3,0],["Austria","J","Shako",1,0,0,3,1],["Jordan","J",null,0,0,1,1,3],["Algeria","J","Sawel",0,0,1,0,3],
- ["Colombia","K","Levy",1,0,0,3,1],["DR Congo","K","Raj",0,1,0,1,1],["Portugal","K","Niro",0,1,0,1,1],["Uzbekistan","K","Niro",0,0,1,1,3],
- ["England","L","Raj",1,0,0,4,2],["Ghana","L","Foot",1,0,0,1,0],["Panama","L","Raj",0,0,1,0,1],["Croatia","L","Shako",0,0,1,2,4],
+ ["Mexico","A","Yonale",3,0,0,1,"in"],["South Africa","A",null,1,1,1,2,"in"],["South Korea","A","Levy",1,0,2,3,"out"],["Czechia","A","Foot",0,1,2,4,"out"],
+ ["Switzerland","B","Raj",2,1,0,1,"in"],["Canada","B","Sawel",1,1,1,2,"in"],["Bosnia","B","Levy",1,1,1,3,"in"],["Qatar","B",null,0,1,2,4,"out"],
+ ["Brazil","C","Raj",2,1,0,1,"in"],["Morocco","C","Yonale",2,1,0,2,"in"],["Scotland","C","Raj",1,0,2,3,"out"],["Haiti","C",null,0,0,3,4,"out"],
+ ["USA","D","Niro",2,0,1,1,"in"],["Australia","D","Niro",1,1,1,2,"in"],["Paraguay","D","Yonale",1,1,1,3,"in"],["Turkiye","D","Niro",1,0,2,4,"out"],
+ ["Germany","E","Shako",2,0,1,1,"in"],["Ivory Coast","E","Yonale",2,0,1,2,"in"],["Ecuador","E","Levy",1,1,1,3,"in"],["Curacao","E",null,0,1,2,4,"out"],
+ ["Netherlands","F","Niro",2,1,0,1,"in"],["Japan","F","Sawel",1,2,0,2,"in"],["Sweden","F","Yonale",1,1,1,3,"in"],["Tunisia","F","Foot",0,0,3,4,"out"],
+ ["Belgium","G","Foot",1,2,0,1,"in"],["Egypt","G","Yonale",1,2,0,2,"in"],["Iran","G","Shako",0,3,0,3,"out"],["New Zealand","G","Sawel",0,1,2,4,"out"],
+ ["Spain","H","Levy",2,1,0,1,"in"],["Cape Verde","H","Levy",0,3,0,2,"in"],["Uruguay","H","Shako",0,2,1,3,"out"],["Saudi Arabia","H","Shako",0,2,1,4,"out"],
+ ["France","I","Foot",3,0,0,1,"in"],["Norway","I","Foot",2,0,1,2,"in"],["Senegal","I","Sawel",1,0,2,3,"in"],["Iraq","I",null,0,0,3,4,"out"],
+ ["Argentina","J","Sawel",3,0,0,1,"in"],["Austria","J","Shako",1,1,1,2,"in"],["Algeria","J","Sawel",1,1,1,3,"in"],["Jordan","J",null,0,0,3,4,"out"],
+ ["Colombia","K","Levy",2,1,0,1,"in"],["Portugal","K","Niro",1,2,0,2,"in"],["DR Congo","K","Raj",1,1,1,3,"in"],["Uzbekistan","K","Niro",0,0,3,4,"out"],
+ ["England","L","Raj",2,1,0,1,"in"],["Croatia","L","Shako",1,2,0,2,"in"],["Ghana","L","Foot",1,1,1,3,"in"],["Panama","L","Raj",0,0,3,4,"out"],
 ];
 // ── Live data source ─────────────────────────────────────────────
-// FIFA's own JSON API. The page tries it directly first; if the browser
-// blocks it (CORS), it retries through a public proxy, then finally
-// falls back to the built-in snapshot below so the page never breaks.
-const FIFA_API = "https://api.fifa.com/api/v3/calendar/17/285023/289273/standing?language=en&count=200";
-// tried in order until one connects; "get" = allorigins JSON-wrapped, others = raw passthrough
+// Group stage is final (hardcoded in RAW above). Only the knockout feed is
+// fetched live; tried directly first, then via a public proxy.
+// "get" = allorigins JSON-wrapped, others = raw passthrough
 const PROXIES = [
   u => ({u:"https://api.allorigins.win/raw?url="+encodeURIComponent(u), wrap:"raw",  tag:"allorigins"}),
   u => ({u:"https://api.allorigins.win/get?url="+encodeURIComponent(u), wrap:"get",  tag:"allorigins2"}),
@@ -290,7 +290,6 @@ const PROXIES = [
   u => ({u:"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u), wrap:"raw", tag:"codetabs"}),
   u => ({u:"https://thingproxy.freeboard.io/fetch/"+u,                  wrap:"raw",  tag:"thingproxy"}),
 ];
-const DATA_URL = "";   // optional: your own JSON feed (array of team rows); takes priority if set
 // ─────────────────────────────────────────────────────────────────
 
 // owners are fixed for the tournament — keyed by canonical team name
@@ -453,25 +452,17 @@ let TEAMS = [], GROUPS = [], RANK = {}, lastUpdated = null;
 function buildData(rows){
   TEAMS = rows.map(r=>{
     const o = Array.isArray(r)
-      ? {name:r[0],group:r[1],owner:r[2],w:r[3],d:r[4],l:r[5],gf:r[6],ga:r[7]}
+      ? {name:r[0],group:r[1],owner:r[2],w:r[3],d:r[4],l:r[5],pos:r[6],status:r[7]}
       : r;
     const owner = OWNERS.includes(o.owner) ? o.owner : (OWNER_MAP[o.name] || null);
-    const w=+o.w||0, d=+o.d||0, l=+o.l||0, gf=+o.gf||0, ga=+o.ga||0;
-    return {name:o.name, group:o.group, owner, w, d, l, gf, ga,
-            pts:w*3+d, gd:gf-ga, status:o.status==="eliminated"?"eliminated":"active"};
+    const w=+o.w||0, d=+o.d||0, l=+o.l||0;
+    return {name:o.name, group:o.group, owner, w, d, l, gf:0, ga:0,
+            pts:w*3+d, gd:0, pos:(+o.pos||0),
+            status:(o.status==="out"||o.status==="eliminated")?"eliminated":"active"};
   });
   GROUPS = [...new Set(TEAMS.map(t=>t.group))].sort();
   RANK = {};
-  GROUPS.forEach(g=>{
-    const sorted = TEAMS.filter(t=>t.group===g)
-      .sort((a,b)=> b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
-    const key = t => t.pts+"|"+t.gd+"|"+t.gf;
-    sorted.forEach(t=>{
-      const pos = sorted.findIndex(x=>key(x)===key(t)) + 1;
-      const tied = sorted.filter(x=>key(x)===key(t)).length > 1;
-      RANK[t.name] = {pos, tied};
-    });
-  });
+  TEAMS.forEach(t=>{ RANK[t.name] = {pos: t.pos, tied:false}; });  // final positions are official (tiebreakers already applied)
 }
 
 async function fetchText(url, ms){
@@ -493,38 +484,22 @@ async function fetchViaProxy(p){
 async function loadData(manual){
   const btn = document.getElementById("refreshBtn");
   if(btn){ btn.classList.add("spin"); btn.disabled = true; }
-  let rows = null, src = "", level = "snapshot", tried = [];
 
-  if(DATA_URL){
-    try{ const j = await fetchJson(DATA_URL + (DATA_URL.includes("?")?"&":"?") + "_=" + Date.now());
-         const r = Array.isArray(j)? j : j.teams; if(r&&r.length){ rows=r; src="your feed"; level="live"; } }
-    catch(e){ tried.push("feed✗"); }
-  }
-  if(!rows && FIFA_API){
-    try{ console.info("[tracker] trying FIFA direct…"); rows = parseFifa(await fetchJson(FIFA_API));
-         if(rows.length){ src="FIFA · direct"; level="live"; } else rows=null; }
-    catch(e){ tried.push("direct✗"); console.warn("[tracker] direct failed:", e.message); }
-    if(!rows){
-      for(const make of PROXIES){
-        const p = make(FIFA_API);
-        try{ console.info("[tracker] trying proxy "+p.tag+"…"); const r = parseFifa(await fetchViaProxy(p));
-             if(r.length){ rows=r; src="FIFA · "+p.tag; level="proxy"; break; } }
-        catch(e){ tried.push(p.tag+"✗"); console.warn("[tracker] "+p.tag+" failed:", e.message); }
-      }
-    }
-  }
-  if(rows && rows.length) console.info("[tracker] loaded", rows.length, "teams via", src);
-  if(rows && rows.length){ buildData(rows); }
-  else { buildData(RAW); level="blocked"; src = "built-in snapshot" + (tried.length?` (${tried.join(" ")})`:""); }
+  // Group stage is complete — standings are final and baked in (no network needed).
+  buildData(RAW);
+  let koLevel = "snapshot", koSrc = "groups final";
 
-  // knockout bracket (best-effort; bracket just stays empty if unreachable)
+  // Only the knockout bracket is fetched live; it also drives knockout eliminations.
   try{
-    let kjson = null;
+    let kjson = null, via = "direct";
     try{ kjson = await fetchJson(KO_API); }catch(e){
-      for(const make of PROXIES){ try{ kjson = await fetchViaProxy(make(KO_API)); if(kjson) break; }catch(_){} }
+      for(const make of PROXIES){ const p = make(KO_API);
+        try{ kjson = await fetchViaProxy(p); if(kjson){ via = p.tag; break; } }catch(_){} }
     }
     if(kjson){ const ms = parseMatches(kjson); if(ms.length){
       BRACKET = buildBracket(ms);
+      koLevel = (via==="direct") ? "live" : "proxy";
+      koSrc = "groups final · bracket live" + (via==="direct" ? "" : " ("+via+")");
       console.info("[tracker] bracket:", ms.length, "matches (live)");
       const koOut = koEliminated(ms);
       if(koOut.size){
@@ -532,11 +507,12 @@ async function loadData(manual){
         console.info("[tracker] knockout exits:", [...koOut].join(", "));
       }
     } }
-  }catch(e){ console.warn("[tracker] bracket fetch failed:", e.message); }
+    else { koSrc = "groups final · bracket unreachable"; koLevel = "blocked"; }
+  }catch(e){ console.warn("[tracker] bracket fetch failed:", e.message); koSrc = "groups final · bracket unreachable"; koLevel="blocked"; }
 
   lastUpdated = new Date();
   if(btn){ btn.classList.remove("spin"); btn.disabled = false; }
-  updateStamp(src, (rows&&rows.length)||TEAMS.length, level);
+  updateStamp(koSrc, TEAMS.length, koLevel);
   buildOwners(); render();
 }
 
@@ -604,7 +580,7 @@ function renderTeams(){
   const items = TEAMS
     .filter(passHardFilters)
     .filter(ownerChosen)   // owner(s) hard-filter in Teams view
-    .sort((a,b)=> a.group.localeCompare(b.group) || b.pts-a.pts || b.gd-a.gd);
+    .sort((a,b)=> a.group.localeCompare(b.group) || (RANK[a.name].pos - RANK[b.name].pos));
   if(!items.length){ grid.innerHTML=`<div class="hint" style="padding:8px">No teams match — clear the search or change filters.</div>`; return; }
   grid.innerHTML = items.map(t=>{
     const ownTxt = t.owner? OWNER_LABEL[t.owner] : "Unassigned";
@@ -625,7 +601,7 @@ function renderHouses(){
   const wrap=document.getElementById("houses");
   wrap.innerHTML = GROUPS.map(g=>{
     let rows = TEAMS.filter(t=>t.group===g)
-      .sort((a,b)=> b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
+      .sort((a,b)=> RANK[a.name].pos - RANK[b.name].pos);
     const ownerCount = ownerSel.size ? rows.filter(t=>ownerSel.has(t.owner)).length : 0;
     const body = rows.map((t,i)=>{
       const visible = passHardFilters(t);
